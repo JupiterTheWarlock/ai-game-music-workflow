@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI Game Music Workflow"
+  short_description: "Build a reusable game-music motif and scene variations"
+  default_prompt: "Use $ai-game-music-workflow to turn a game-music idea into a short motif and several consistent scene arrangements."
