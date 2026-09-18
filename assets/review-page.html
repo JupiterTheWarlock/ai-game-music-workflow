@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>短旋律候选试听</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,"Microsoft YaHei",sans-serif;background:#141813;color:#edf0e8}
+body{max-width:920px;margin:48px auto;padding:0 22px 48px}h1{font-size:30px;margin-bottom:12px}
+p{color:#bbc6b3;line-height:1.8}.top{margin:24px 0;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+button,a{font:inherit}button{cursor:pointer;border:1px solid #82946c;background:#c0d598;color:#1d2815;border-radius:9px;padding:11px 18px}
+button.secondary{background:transparent;color:#d9e3ce}#status{color:#c0d598;min-height:28px}
+main{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+article{border:1px solid #3b4635;border-radius:14px;padding:20px;background:#20261d}
+article.active{border-color:#d8edaf;box-shadow:0 0 0 1px #d8edaf}h2{font-size:20px;margin:0}
+article p{font-size:14px;min-height:28px;margin-bottom:12px}audio{width:100%;margin:8px 0 14px}
+a{color:#bfd699;font-size:14px}small{color:#aab49f}footer{margin-top:24px}
+</style>
+<h1>短旋律候选试听</h1>
+<p>逐段试听并记下喜欢的编号。所有候选使用相同音色，方便把注意力放在旋律本身。</p>
+<div class="top">
+  <button id="all">▶ 依次听全部</button>
+  <button id="stop" class="secondary">停止</button>
+  <label><input type="checkbox" id="repeat"> 单段循环</label>
+</div>
+<div id="status" role="status" aria-live="polite">可以从任意一段开始试听。</div>
+<main id="list"></main>
+<footer><small>页面可离线使用；每段音频也可以单独下载。</small></footer>
+<script src="tracks.js"></script>
+<script>
+const tracks = Array.isArray(window.REVIEW_TRACKS) ? window.REVIEW_TRACKS : [];
+const list = document.getElementById('list');
+const status = document.getElementById('status');
+const repeat = document.getElementById('repeat');
+let queue = [];
+let expected = -1;
+
+function formatDuration(seconds) {
+  return Number.isFinite(seconds) ? `${seconds.toFixed(1)} 秒` : '';
+}
+
+const players = tracks.map((track, index) => {
+  const card = document.createElement('article');
+  const heading = document.createElement('h2');
+  heading.textContent = `候选 ${track.id}`;
+  const detail = document.createElement('p');
+  detail.textContent = `${track.filename}${track.duration ? ` · ${formatDuration(track.duration)}` : ''}`;
+  const player = document.createElement('audio');
+  player.controls = true;
+  player.preload = 'metadata';
+  player.src = track.src;
+  player.setAttribute('aria-label', `候选 ${track.id}`);
+  const download = document.createElement('a');
+  download.href = track.src;
+  download.download = track.filename;
+  download.textContent = '下载 WAV';
+  card.append(heading, detail, player, document.createElement('br'), download);
+  list.append(card);
+
+  player.addEventListener('play', () => {
+    if (expected !== index) queue = [];
+    expected = -1;
+    players.forEach((other, otherIndex) => {
+      if (other !== player) { other.pause(); other.currentTime = 0; }
+      list.children[otherIndex].classList.toggle('active', otherIndex === index);
+    });
+    status.textContent = `正在播放候选 ${track.id}`;
+  });
+  player.addEventListener('ended', () => {
+    card.classList.remove('active');
+    if (queue.length) start(queue.shift());
+    else status.textContent = '播放结束，可以再听或换一段。';
+  });
+  player.addEventListener('error', () => {
+    status.textContent = `候选 ${track.id} 加载失败，请确认 WAV 文件与页面在同一目录。`;
+  });
+  return player;
+});
+
+async function start(index) {
+  if (index === undefined || index < 0) return;
+  expected = index;
+  players[index].currentTime = 0;
+  try { await players[index].play(); }
+  catch {
+    queue = [];
+    expected = -1;
+    status.textContent = '浏览器阻止了连续播放，请手动点击音频的播放按钮。';
+  }
+}
+
+repeat.addEventListener('change', () => {
+  queue = [];
+  players.forEach(player => player.loop = repeat.checked);
+});
+
+document.getElementById('all').onclick = () => {
+  players.forEach(player => { player.pause(); player.currentTime = 0; player.loop = false; });
+  repeat.checked = false;
+  queue = tracks.map((_, index) => index);
+  start(queue.shift());
+};
+
+document.getElementById('stop').onclick = () => {
+  queue = [];
+  expected = -1;
+  players.forEach(player => { player.pause(); player.currentTime = 0; });
+  [...list.children].forEach(card => card.classList.remove('active'));
+  status.textContent = '已停止。';
+};
+
+if (!tracks.length) status.textContent = '没有找到 WAV 文件，请先生成或复制候选音频。';
+</script>
+</html>

@@ -1,96 +1,122 @@
 ---
 name: ai-game-music-workflow
-description: Build a recognizable game-music identity from a short motif, then adapt it into consistent scene music with AI. Use when a user needs motif candidates, reference-audio arrangement prompts, cross-scene BGM, or help diagnosing AI music that loses the melody or misses the intended sound.
+description: Generate short numbered motif candidates with an offline listening page, turn plain-language scene needs into prompts, then use Suno Cover and focused prompt revisions to create consistent game music.
 ---
 
 # AI game music workflow
 
-Help the user create a small musical idea that can survive changes in instruments, tempo, rhythm, and scene. The goal is a reusable identity for one game, not one impressive but disconnected track.
+Create a recognizable musical identity in three stages:
 
-Do not imitate the melody or recording of a named game. A reference may explain the desired level of recognizability, but create new musical material.
+1. Generate short motif candidates and let the user choose one on a listening page.
+2. Turn the user's scene and style needs into prompts.
+3. Use Suno Cover to arrange the selected motif, then revise one problem at a time.
 
-## Separate preference from diagnosis
+`{skillDir}` means the directory containing this `SKILL.md`. Resolve bundled scripts and assets from that directory rather than from the user's current working directory. `{python}` means an available Python 3.8 or newer command such as `python`, `python3`, or `py -3`.
 
-- Treat the user's selection as a preference. Record any reason they give without adding musical explanations of your own.
-- Explain unfamiliar terms when they first matter. A motif is a short musical idea that can be repeated and changed.
-- Use the user's chosen music service when one is named. Otherwise prefer a service that can arrange or extend uploaded audio. Product names, modes, interfaces, and licensing terms change, so verify current details when they affect the task.
+Do not imitate the melody or recording of a named game. A named reference may explain the desired level of recognizability, but the generated melody must be original.
 
-## Choose the starting point
+## Keep the workflow beginner-friendly
 
-If the user already has a short melody or WAV, inspect that material and continue with scene testing.
+- Ask in everyday language. Do not require music theory terms.
+- Treat the user's selection and listening reaction as preference. Do not invent reasons they did not give.
+- At each stage, show the visible result before moving on.
+- Preserve previous files and generations instead of overwriting them.
+- If the user already provides a short motif WAV, keep it as the selected motif and start at stage 2.
 
-If the user has no melody, first ask for the broad musical identity: desired tension or warmth, energy, rough tempo, sounds to favor, sounds to avoid, and whether the music will loop under gameplay. Do not require music theory vocabulary.
+## Stage 1: generate and review short motifs
 
-## Build short motif candidates
+Read [references/motif-generation-and-review.md](references/motif-generation-and-review.md), then use the bundled scripts.
 
-Create a small batch of short candidates. Each candidate only needs one phrase that is easy to compare. Choose the batch size and duration according to the project and the user's listening time. Keep the comparison fair:
+Unless the user asks for different values, generate 12 numbered WAV candidates with the same simple sound and similar duration:
 
-- use the same simple sound, loudness, and approximate length;
-- vary rhythm, rests, pitch movement, register, and repetition;
-- number every candidate and preserve earlier batches;
-- export separate reviewable audio files and, when useful, a simple comparison page.
+```bash
+{python} "{skillDir}/scripts/generate_candidates.py" --output-dir music-workbench/motif-candidates
+```
 
-The sound only needs to make the notes and rests easy to compare. Do not spend time polishing the arrangement before the motif is chosen.
+The command must produce and open:
 
-Let the user select by listening. Useful questions are whether a candidate is memorable, tolerates repetition, can be split into fragments, and fits the game's overall tone. These are prompts for the user's judgment, not facts the agent should assert.
+- numbered WAV files;
+- `manifest.json`;
+- `tracks.js`;
+- `review.html`.
 
-## Test the motif across scenes
+If the output directory already contains a batch, the script creates a new timestamped batch directory instead of overwriting it. Use the path printed by the script for the rest of the workflow.
 
-Choose a small set of contrasting directions from the game's actual scenes. Validate the method on a few directions before expanding the set. Describe each with concrete controls:
+Do not replace the listening page with a text table. Let the user listen and choose by number. Record only the reason they actually give. Copy the chosen WAV to `music-workbench/selected-motif/` without deleting the candidates.
 
-- instruments and register;
-- pulse or tempo;
-- percussion and bass behavior;
-- density, space, and mix character;
-- required and forbidden sounds;
-- how the motif may change.
+## Stage 2: turn needs into scene prompts
 
-Upload the selected motif to a tool that supports reference-audio arrangement or extension. You can first use one scene to check whether the tool preserves the motif before expanding the set. For a reusable prompt structure, read [references/prompt-template.md](references/prompt-template.md).
+Ask only what is needed to understand:
 
-## Diagnose before changing the prompt
+- what each scene should feel like;
+- how energetic or restrained it should be;
+- sounds the user wants or dislikes.
 
-Classify the problem before revising anything:
+If the user does not know instrument names or production terms, draft sensible choices in plain language and let them correct the draft.
+
+Create a short scene list first. After the user confirms the directions, read [references/prompt-template.md](references/prompt-template.md) and produce one prompt per scene. Keep the selected motif as the common melodic source.
+
+Visible result for this stage:
+
+- a confirmed scene list;
+- one copyable prompt per scene;
+- the selected motif WAV that every scene will use.
+
+Save the confirmed scene list and prompts to `music-workbench/scene-prompts.md`.
+
+## Stage 3: generate with Suno Cover and refine
+
+Read [references/suno-cover.md](references/suno-cover.md) before operating Suno.
+
+Use Suno Cover by default. If the user explicitly chooses another service, preserve the same method with that service's reference-audio arrangement feature.
+
+For the first pass:
+
+1. Upload the selected motif WAV.
+2. Choose Cover and an available model suitable for iteration.
+3. Keep the track instrumental unless the user asks for vocals.
+4. Paste one confirmed scene prompt and generate.
+5. Verify that a playable result exists, then save its file or link.
+
+Use an already logged-in browser session when browser automation is available. If browser operation is unavailable, give the user the exact manual steps and wait for the generated result. Never claim that a file was uploaded or a track was generated without verifying it.
+
+Before revising, classify the main problem:
 
 1. The motif disappears or an unrelated theme takes over.
 2. The mood or harmony is wrong.
 3. The instruments or sound design dominate the piece.
-4. The rhythm, bass, or overall density becomes tiring.
+4. The rhythm, bass, or density becomes tiring.
 5. The structure or duration does not work as background music.
 
-Change one group of controls per round when possible. This makes the result understandable. Preserve the previous output instead of overwriting it.
+Change one group of controls per round when possible. Use the failure table in [references/prompt-template.md](references/prompt-template.md). Keep earlier generations.
 
-When the motif gets lost, require recognizable repetitions, octave changes, timing changes, and short fragments of the uploaded motif. Explicitly forbid unrelated themes, long solos, or free melodic improvisation. Do not force the motif to repeat unchanged from beginning to end; the arrangement still needs room to develop.
+When the task has more than a few outputs, record each round with [references/iteration-log-template.md](references/iteration-log-template.md).
 
-When the scene feels wrong, replace vague mood words with audible choices. Specify which instruments to remove, how much bass to keep, whether drums are allowed, how much silence is needed, and whether the mix should feel dry or spacious.
+## Completion checks
 
-## Keep an iteration record
+Do not call the workflow complete until these exist:
 
-Record the prompt, platform, model or mode, reference file, result file or link, the one change made in that round, what the user actually heard, and the next decision. Use [references/iteration-log-template.md](references/iteration-log-template.md) when the task has more than a few outputs.
-
-## Decide when a version is usable
-
-A scene version is ready for the current stage when:
-
-- the scene's intended sound is present;
-- the motif remains recognizable in important passages;
-- later passages do not drift into an unrelated theme;
-- bass and density are comfortable for repeated gameplay listening;
-- the track leaves enough space for game sounds.
-
-Do not claim that a track is objectively good. Report the user's selection and any observable technical checks separately.
+- candidate WAV files and an opened listening page;
+- one user-selected motif WAV;
+- a confirmed scene list and copyable prompts;
+- at least one verified Suno Cover result;
+- for any revision, the earlier result, the changed prompt, and the new result.
 
 ## Deliverables
 
-Keep the work easy to revisit:
-
 ```text
 music-workbench/
-  brief.md
   motif-candidates/
+    candidate-01.wav        # first batch when the directory is empty
+    ...
+    review.html
+    tracks.js
+    manifest.json
+    batch-YYYYMMDD-HHMMSS/  # later batches are preserved here
   selected-motif/
+  scene-prompts.md
   scene-versions/
   prompts-and-results.md
-  exports/
 ```
 
-Use WAV for the editable reference when practical. Make MP3 or M4A copies for easy review.
+Use WAV for the reference motif. Make MP3 or M4A copies only when they make review or sharing easier.
